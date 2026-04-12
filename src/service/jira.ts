@@ -80,7 +80,7 @@ export async function searchIssues(jql: string): Promise<{ issues: { key: string
   const res = await fetch(`${baseUrl()}/search/jql`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: authHeader() },
-    body: JSON.stringify({ jql, fields: ["summary", "status", "assignee", "priority"] }),
+    body: JSON.stringify({ jql, fields: ["summary", "status", "assignee", "priority", "issuetype", "parent", "subtasks"] }),
   });
   if (!res.ok) throw new Error(`Jira ${res.status}: ${await res.text()}`);
   return res.json() as any;

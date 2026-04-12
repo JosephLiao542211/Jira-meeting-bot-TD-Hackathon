@@ -11,7 +11,7 @@ export const researchToolDeclarations = [
   {
     name: "searchIssues",
     description:
-      "Search existing Jira issues by JQL. Always call before creating or updating an issue to find the correct issue key or check for duplicates.",
+      "Search existing Jira issues by JQL. Always call before creating or updating an issue. Results include each issue's key (e.g. 'KAN-1'), summary, status, issuetype, and parent. Use the key as issueKey for updateIssue/transitionIssue, or as parentKey when creating subtasks.",
     parameters: {
       type: "object",
       properties: {
@@ -68,7 +68,7 @@ export const actionToolDeclarations = [
   {
     name: "createIssue",
     description:
-      "Create a new Jira issue or subtask. You MUST call searchIssues first to check for duplicates. To create a subtask, set type to 'Subtask' and provide parentKey.",
+      "Create a new Jira issue or subtask. You MUST call searchIssues first to check for duplicates. To create a subtask, you MUST set type to 'Subtask' AND provide parentKey with the parent issue's key from searchIssues results.",
     parameters: {
       type: "object",
       properties: {

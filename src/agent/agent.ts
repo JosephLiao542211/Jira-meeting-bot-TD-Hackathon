@@ -4,7 +4,7 @@ import { systemPrompt } from "./prompts/system.js";
 import { fewShotExamples } from "./prompts/examples.js";
 import { researchToolDeclarations, actionToolDeclarations } from "./tools/index.js";
 import { searchIssues, getUsers, getActiveSprintId, getTransitions } from "../service/jira.js";
-import { enqueue, hasPending } from "../service/queue.js";
+import { enqueue, hasPending, getRecentJobs } from "../service/queue.js";
 import { requestApproval } from "./tools/teams/notify.js";
 import { config } from "./config.js";
 import { log } from "../util/index.js";
@@ -47,9 +47,12 @@ const researchExecutors: Record<string, (args: any) => Promise<unknown>> = {
 
 // ── Agentic loop ─────────────────────────────────────────────────────────────
 
-async function runLoop(transcript: string[]): Promise<ToolCall[]> {
+async function runLoop(transcript: string[], contextNote: string): Promise<ToolCall[]> {
   const allTools = [...researchToolDeclarations, ...actionToolDeclarations];
-  const messages: any[] = [{ role: "user", parts: [{ text: transcript.join("\n") }] }];
+  const userMessage = contextNote
+    ? `${contextNote}\n\n--- TRANSCRIPT ---\n${transcript.join("\n")}`
+    : transcript.join("\n");
+  const messages: any[] = [{ role: "user", parts: [{ text: userMessage }] }];
   const actions: ToolCall[] = [];
 
   for (let turn = 0; turn < config.maxTurns; turn++) {
@@ -143,16 +146,51 @@ function actionLabel(action: ToolCall): string {
   return String(action.args.summary ?? action.args.issueKey ?? action.name);
 }
 
-// ── Bus listener (single entry point) ────────────────────────────────────────
+// ── Context builder ─────────────────────────────────────────────────────────
+
+/** Builds a context note telling the model which lines are new and what was already handled. */
+function buildContext(botId: string, buffer: string[], watermark: number): string {
+  const parts: string[] = [];
+
+  // Tell the model which lines are new
+  if (watermark > 0 && watermark < buffer.length) {
+    parts.push(`Lines 1–${watermark} were already analysed. Only lines ${watermark + 1}–${buffer.length} are NEW. Focus on new lines only — do not re-act on old content.`);
+  }
+
+  // Tell the model about recently handled actions
+  const recent = getRecentJobs(botId);
+  if (recent.length > 0) {
+    const handled = recent.map((j) => {
+      const label = j.payload.summary ?? j.payload.issueKey ?? j.type;
+      return `- ${j.type} ${j.payload.issueKey ? `[${j.payload.issueKey}]` : ""}: ${label} (${j.status})`;
+    });
+    parts.push(`Already handled (do NOT re-propose):\n${handled.join("\n")}`);
+  }
+
+  return parts.join("\n\n");
+}
+
+// ── Bus listener (single entry point, debounced) ────────────────────────────
 
 const processing = new Set<string>();
+const watermarks = new Map<string, number>();
+const debounceTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
-bus.on("transcript", async ({ botId, session }: TranscriptEvent) => {
+async function processTranscript(botId: string, session: TranscriptEvent["session"]): Promise<void> {
   if (processing.has(botId)) return;
   processing.add(botId);
   try {
-    log("agent", `processing: ${session.transcriptBuffer.at(-1)}`, "blue");
-    const actions = await runLoop(session.transcriptBuffer);
+    const buffer = session.transcriptBuffer;
+    const watermark = watermarks.get(botId) ?? 0;
+    const newLines = buffer.length - watermark;
+
+    log("agent", `processing: ${buffer.at(-1)} (${newLines} new lines)`, "blue");
+
+    const context = buildContext(botId, buffer, watermark);
+    const actions = await runLoop(buffer, context);
+
+    // Advance watermark after processing
+    watermarks.set(botId, buffer.length);
 
     for (const action of actions) {
       if (!ACTION_TOOLS.has(action.name)) continue;
@@ -176,4 +214,20 @@ bus.on("transcript", async ({ botId, session }: TranscriptEvent) => {
   } finally {
     processing.delete(botId);
   }
+}
+
+bus.on("transcript", ({ botId, session }: TranscriptEvent) => {
+  // Reset the debounce timer on every new transcript line.
+  // The agent only fires after `debounceMs` of silence, so the speaker
+  // can finish their full thought before we process.
+  const existing = debounceTimers.get(botId);
+  if (existing) clearTimeout(existing);
+
+  debounceTimers.set(
+    botId,
+    setTimeout(() => {
+      debounceTimers.delete(botId);
+      processTranscript(botId, session);
+    }, config.debounceMs),
+  );
 });

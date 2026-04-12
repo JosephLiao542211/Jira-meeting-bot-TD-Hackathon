@@ -1,6 +1,8 @@
 export const config = {
   model: "gemini-3.1-flash-lite-preview",
   maxTurns: 7,
+  /** Wait this many ms after the last transcript line before processing. */
+  debounceMs: 3_000,
   thresholds: {
     confidence: 0.7,
   },
