@@ -3,8 +3,9 @@ export interface Ticket {
   description?: string;
   type?: string;
   priority?: string;
-  assignee?: string;
+  assignee?: string;   // Jira accountId — use getUsers to resolve from display name
   labels?: string[];
+  sprintId?: number;   // customfield_10020 — use getActiveSprint to resolve
 }
 
 export interface Proposal {

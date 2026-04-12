@@ -3,11 +3,13 @@ import http from "http";
 import express from "express";
 import { WebSocketServer } from "ws";
 import { botRouter } from "./route/bot.js";
+import { jobsRouter } from "./route/jobs.js";
 import { registerRecallWs } from "./route/recall.js";
 
 const app = express();
 app.use(express.json());
 app.use("/api", botRouter);
+app.use("/api/jobs", jobsRouter);
 
 const server = http.createServer(app);
 const recallWss = new WebSocketServer({ noServer: true });

@@ -1,8 +1,51 @@
-export interface Decision {
-  summary: string;
-}
+import { bus, type TranscriptEvent } from "../../../service/bus.js";
+import { ask } from "../../gemini.js";
+import { createIssue } from "../../tools/jira/createIssue.js";
+import { requestApproval } from "../../tools/teams/notify.js";
 
-export function detectDecision(buffer: string[]): Decision | null {
-  // TODO: use Gemini / LLM to detect decisions in buffer
-  return null;
-}
+const prompt = `
+You are listening to a meeting transcript. Detect decisions — when the team explicitly agrees on something, resolves a question, or picks a direction.
+
+Before calling createIssue, you MUST:
+1. Call searchIssues to check if this decision is already logged. Use JQL: project = ${process.env.JIRA_PROJECT_KEY} AND labels = decision AND summary ~ "<keyword>"
+2. Call getActiveSprint to get the current sprint ID.
+
+Only call createIssue if:
+- A clear, explicit decision was made by the team in the transcript.
+- It has not already been logged.
+
+Vague statements or ongoing discussions are not decisions. Do nothing if unsure.
+`.trim();
+
+const actionTools = [
+  {
+    name: "createIssue",
+    description: "Queue a Jira Task to log a team decision. Only call after completing all research steps.",
+    parameters: {
+      type: "object",
+      properties: {
+        summary: {
+          type: "string",
+          description: "One-line statement of the decision. Start with a verb e.g. 'Migrate auth to OAuth2'. Max 255 characters.",
+        },
+        description: {
+          type: "string",
+          description: "Additional context, reasoning, or participants from the transcript.",
+        },
+        sprintId: {
+          type: "number",
+          description: "Active sprint ID from getActiveSprint.",
+        },
+      },
+      required: ["summary"],
+    },
+  },
+];
+
+bus.on("transcript", async ({ botId, session }: TranscriptEvent) => {
+  const call = await ask(prompt, session.transcriptBuffer, actionTools);
+  if (!call || call.name !== "createIssue") return;
+
+  const job = createIssue({ ...(call.args as any), type: "Task", labels: ["decision"] }, botId);
+  await requestApproval(botId, job);
+});
