@@ -1,3 +1,5 @@
+import { log } from "../util/index.js";
+
 export interface Job {
   id: string;
   type: string;
@@ -12,6 +14,7 @@ export function enqueue(data: Omit<Job, "id" | "status">): Job {
   const id = `job_${Date.now()}`;
   const job: Job = { ...data, id, status: "pending" };
   jobs.set(id, job);
+  log("queue", `enqueued ${id} — ${data.type}: ${data.payload.summary}`, "yellow");
   return job;
 }
 
@@ -21,6 +24,9 @@ export function getJob(id: string): Job | undefined {
 
 export function updateStatus(id: string, status: Job["status"]): Job | undefined {
   const job = jobs.get(id);
-  if (job) job.status = status;
+  if (job) {
+    job.status = status;
+    log("queue", `${id} → ${status}`, status === "approved" ? "green" : "red");
+  }
   return job;
 }

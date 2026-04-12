@@ -1,6 +1,7 @@
 import { config } from "./config.js";
 import { searchIssues, getUsers, getActiveSprintId } from "../service/jira.js";
 import { researchToolDeclarations } from "./tools/index.js";
+import { log } from "../util/index.js";
 
 export interface ToolCall {
   name: string;
@@ -30,8 +31,6 @@ async function callGemini(systemPrompt: string, messages: unknown[], tools: unkn
   return res.json();
 }
 
-// Agentic loop — Gemini can call research tools freely before making a final action call.
-// Returns the action tool call (e.g. createIssue) or null if no action is needed.
 export async function ask(
   systemPrompt: string,
   transcript: string[],
@@ -41,23 +40,33 @@ export async function ask(
   const messages: any[] = [{ role: "user", parts: [{ text: transcript.join("\n") }] }];
 
   for (let turn = 0; turn < 5; turn++) {
+    log("gemini", `turn ${turn + 1} — calling model`, "blue");
+
     const data = await callGemini(systemPrompt, messages, allTools);
     const part = data.candidates?.[0]?.content?.parts?.[0];
 
-    if (!part?.functionCall) return null; // no action needed
+    if (!part?.functionCall) {
+      log("gemini", "no action", "gray");
+      return null;
+    }
 
     const call: ToolCall = { name: part.functionCall.name, args: part.functionCall.args ?? {} };
 
     if (researchExecutors[call.name]) {
+      log("gemini", `research → ${call.name}(${JSON.stringify(call.args)})`, "yellow");
       const result = await researchExecutors[call.name](call.args);
+      log("gemini", `result ← ${call.name}: ${JSON.stringify(result).slice(0, 120)}`, "magenta");
+
       messages.push(
         { role: "model", parts: [{ functionCall: { name: call.name, args: call.args } }] },
         { role: "user", parts: [{ functionResponse: { name: call.name, response: { content: JSON.stringify(result) } } }] }
       );
     } else {
-      return call; // action tool — hand back to skill
+      log("gemini", `action → ${call.name}(${JSON.stringify(call.args)})`, "green");
+      return call;
     }
   }
 
+  log("gemini", "max turns reached — no action", "red");
   return null;
 }

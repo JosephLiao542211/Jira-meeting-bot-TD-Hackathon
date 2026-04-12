@@ -2,6 +2,7 @@ import { bus, type TranscriptEvent } from "../../../service/bus.js";
 import { ask } from "../../gemini.js";
 import { createIssue } from "../../tools/jira/createIssue.js";
 import { requestApproval } from "../../tools/teams/notify.js";
+import { log } from "../../../util/index.js";
 
 const prompt = `
 You are listening to a meeting transcript. Detect bug reports — when someone describes unexpected behaviour, a crash, or a broken feature.
@@ -58,9 +59,14 @@ const actionTools = [
 ];
 
 bus.on("transcript", async ({ botId, session }: TranscriptEvent) => {
+  log("skill:bugReport", `checking last line: ${session.transcriptBuffer.at(-1)}`, "blue");
   const call = await ask(prompt, session.transcriptBuffer, actionTools);
-  if (!call || call.name !== "createIssue") return;
+  if (!call || call.name !== "createIssue") {
+    log("skill:bugReport", "no bug detected", "gray");
+    return;
+  }
 
+  log("skill:bugReport", `detected: ${call.args.summary}`, "green");
   const job = createIssue({ ...(call.args as any), type: "Bug" }, botId);
   await requestApproval(botId, job);
 });
