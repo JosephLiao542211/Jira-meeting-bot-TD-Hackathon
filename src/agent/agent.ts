@@ -102,10 +102,9 @@ async function runLoop(transcript: string[], contextNote: string): Promise<ToolC
       actions.push({ name, args: args ?? {} });
     }
 
-    // If no research was done this turn, we're done (only had actions)
-    if (researchParts.length === 0) break;
-
     // Feed results back — preserve original parts (includes thought_signatures)
+    // This continues the loop so the model can emit more actions (e.g. transition
+    // KAN-7 on one turn, then KAN-8 on the next).
     const responseParts = [
       ...researchResults.map((r) => ({
         functionResponse: { name: r.name, response: { content: JSON.stringify(r.result) } },
@@ -134,9 +133,19 @@ function isDuplicate(action: ToolCall): boolean {
     case "createIssue":
       return hasPending((j) => j.type === "createIssue" && j.payload.summary === action.args.summary);
     case "updateIssue":
-      return hasPending((j) => j.type === "updateIssue" && j.payload.issueKey === action.args.issueKey);
+      // Same ticket + same exact fields = duplicate. Different fields on same ticket = allowed.
+      return hasPending((j) =>
+        j.type === "updateIssue" &&
+        j.payload.issueKey === action.args.issueKey &&
+        JSON.stringify(j.payload) === JSON.stringify(action.args),
+      );
     case "transitionIssue":
-      return hasPending((j) => j.type === "transitionIssue" && j.payload.issueKey === action.args.issueKey);
+      // Same ticket + same transition = duplicate. Different transition on same ticket = allowed.
+      return hasPending((j) =>
+        j.type === "transitionIssue" &&
+        j.payload.issueKey === action.args.issueKey &&
+        j.payload.transitionId === action.args.transitionId,
+      );
     default:
       return false;
   }
