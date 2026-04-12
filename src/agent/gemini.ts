@@ -1,28 +1,11 @@
 import { config } from "./config.js";
-import { searchIssues, getUsers, getActiveSprintId } from "../service/jira.js";
-import { researchToolDeclarations } from "./tools/index.js";
-import { log } from "../util/index.js";
 import { withRetry } from "../util/retry.js";
 
-export interface ToolCall {
-  name: string;
-  args: Record<string, unknown>;
-}
-
-const researchExecutors: Record<string, (args: any) => Promise<unknown>> = {
-  searchIssues: ({ jql }: { jql: string }) =>
-    withRetry(() => searchIssues(jql), { issues: [] }, { tag: "jira:search", maxAttempts: 2 }),
-  getUsers: ({ query }: { query: string }) =>
-    withRetry(() => getUsers(query), [], { tag: "jira:users", maxAttempts: 2 }),
-  getActiveSprint: () =>
-    withRetry(
-      () => getActiveSprintId(process.env.JIRA_PROJECT_KEY ?? "").then((id) => ({ sprintId: id })),
-      { sprintId: null },
-      { tag: "jira:sprint", maxAttempts: 2 },
-    ),
-};
-
-async function callGeminiRaw(systemPrompt: string, messages: unknown[], tools: unknown[]): Promise<any> {
+async function callGeminiRaw(
+  systemPrompt: string,
+  messages: unknown[],
+  tools: unknown[],
+): Promise<any> {
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${config.model}:generateContent?key=${process.env.GEMINI_API_KEY}`,
     {
@@ -33,61 +16,20 @@ async function callGeminiRaw(systemPrompt: string, messages: unknown[], tools: u
         contents: messages,
         tools: [{ function_declarations: tools }],
       }),
-    }
+    },
   );
   if (!res.ok) throw new Error(`Gemini ${res.status}: ${await res.text()}`);
   return res.json();
 }
 
-async function callGemini(systemPrompt: string, messages: unknown[], tools: unknown[]): Promise<any> {
+export async function callGemini(
+  systemPrompt: string,
+  messages: unknown[],
+  tools: unknown[],
+): Promise<any> {
   return withRetry(() => callGeminiRaw(systemPrompt, messages, tools), null, {
     tag: "gemini",
     maxAttempts: 3,
     baseDelayMs: 1_000,
   });
-}
-
-export async function ask(
-  systemPrompt: string,
-  transcript: string[],
-  actionTools: unknown[]
-): Promise<ToolCall | null> {
-  const allTools = [...researchToolDeclarations, ...actionTools];
-  const messages: any[] = [{ role: "user", parts: [{ text: transcript.join("\n") }] }];
-
-  for (let turn = 0; turn < 5; turn++) {
-    log("gemini", `turn ${turn + 1} — calling model`, "blue");
-
-    const data = await callGemini(systemPrompt, messages, allTools);
-    if (!data) {
-      log("gemini", "model call failed after retries — aborting", "red");
-      return null;
-    }
-    const part = data.candidates?.[0]?.content?.parts?.[0];
-
-    if (!part?.functionCall) {
-      log("gemini", "no action", "gray");
-      return null;
-    }
-
-    const call: ToolCall = { name: part.functionCall.name, args: part.functionCall.args ?? {} };
-
-    if (researchExecutors[call.name]) {
-      log("gemini", `research → ${call.name}(${JSON.stringify(call.args)})`, "yellow");
-      const result = await researchExecutors[call.name](call.args);
-      log("gemini", `result ← ${call.name}: ${JSON.stringify(result).slice(0, 120)}`, "magenta");
-
-      // Preserve the original part (includes thought_signature required by Gemini)
-      messages.push(
-        { role: "model", parts: [part] },
-        { role: "user", parts: [{ functionResponse: { name: call.name, response: { content: JSON.stringify(result) } } }] }
-      );
-    } else {
-      log("gemini", `action → ${call.name}(${JSON.stringify(call.args)})`, "green");
-      return call;
-    }
-  }
-
-  log("gemini", "max turns reached — no action", "red");
-  return null;
 }

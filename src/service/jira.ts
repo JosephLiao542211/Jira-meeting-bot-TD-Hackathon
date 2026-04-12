@@ -1,5 +1,3 @@
-import type { Ticket } from "./session.js";
-
 // Jira Cloud REST API v3
 // Docs:   https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-issues/
 // ADF:    https://developer.atlassian.com/cloud/jira/platform/apis/document/structure/
@@ -17,12 +15,32 @@ function agileUrl(): string {
   return `${process.env.JIRA_BASE_URL}/rest/agile/1.0`;
 }
 
-function toAdf(text: string) {
+export function toAdf(text: string) {
   return {
     version: 1,
     type: "doc",
     content: [{ type: "paragraph", content: [{ type: "text", text }] }],
   };
+}
+
+// ── Types ────────────────────────────────────────────────────────────────────
+
+export interface Ticket {
+  summary: string;
+  description?: string;
+  type?: string;
+  priority?: string;
+  assignee?: string;   // Jira accountId — use getUsers to resolve from display name
+  labels?: string[];
+  sprintId?: number;   // customfield_10020 — use getActiveSprint to resolve
+  parentKey?: string;  // parent issue key for subtasks (e.g. "KAN-1")
+}
+
+export interface Proposal {
+  id?: string;
+  botId?: string;
+  summary: string;
+  ticket: Ticket;
 }
 
 // ── Issues ────────────────────────────────────────────────────────────────────
@@ -41,6 +59,7 @@ export async function createIssue(ticket: Ticket): Promise<{ key: string }> {
         ...(ticket.assignee ? { assignee: { accountId: ticket.assignee } } : {}), // must be accountId
         ...(ticket.labels?.length ? { labels: ticket.labels } : {}),
         ...(ticket.sprintId ? { customfield_10020: ticket.sprintId } : {}),    // active sprint
+        ...(ticket.parentKey ? { parent: { key: ticket.parentKey } } : {}),    // subtask parent
       },
     }),
   });
@@ -65,6 +84,32 @@ export async function searchIssues(jql: string): Promise<{ issues: { key: string
   });
   if (!res.ok) throw new Error(`Jira ${res.status}: ${await res.text()}`);
   return res.json() as any;
+}
+
+// ── Transitions ──────────────────────────────────────────────────────────────
+
+export interface JiraTransition {
+  id: string;
+  name: string;
+  to: { name: string };
+}
+
+export async function getTransitions(issueKey: string): Promise<JiraTransition[]> {
+  const res = await fetch(`${baseUrl()}/issue/${issueKey}/transitions`, {
+    headers: { Authorization: authHeader() },
+  });
+  if (!res.ok) throw new Error(`Jira ${res.status}: ${await res.text()}`);
+  const data = await res.json() as any;
+  return data.transitions ?? [];
+}
+
+export async function transitionIssue(issueKey: string, transitionId: string): Promise<void> {
+  const res = await fetch(`${baseUrl()}/issue/${issueKey}/transitions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: authHeader() },
+    body: JSON.stringify({ transition: { id: transitionId } }),
+  });
+  if (!res.ok) throw new Error(`Jira ${res.status}: ${await res.text()}`);
 }
 
 // ── Users ─────────────────────────────────────────────────────────────────────

@@ -7,14 +7,15 @@ import { log } from "../util/index.js";
 export const jobsRouter = Router();
 
 function confirmationPage(job: { id: string; type: string; payload: Record<string, unknown>; status: string }): string {
-  const summary = String(job.payload.summary ?? "Jira action");
+  const summary = String(job.payload.summary ?? job.payload.issueKey ?? "Jira action");
   const desc = job.payload.description ? `<p>${String(job.payload.description)}</p>` : "";
+  const issueRef = job.payload.issueKey ? `<p><strong>Issue:</strong> ${String(job.payload.issueKey)}</p>` : "";
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${summary}</title>
 <style>body{font-family:system-ui,sans-serif;max-width:480px;margin:40px auto;padding:0 16px}
 h2{margin-bottom:4px}p{color:#555}.actions{display:flex;gap:12px;margin-top:24px}
 button{padding:10px 24px;border:none;border-radius:6px;font-size:16px;cursor:pointer;color:#fff}
 .approve{background:#22863a}.deny{background:#cb2431}.done{background:#666}</style></head>
-<body><h2>${job.type}: ${summary}</h2>${desc}
+<body><h2>${job.type}: ${summary}</h2>${issueRef}${desc}
 ${job.status !== "pending"
     ? `<p>This job has already been <strong>${job.status}</strong>.</p>`
     : `<div class="actions">

@@ -1,5 +1,6 @@
 export const config = {
   model: "gemini-3.1-flash-lite-preview",
+  maxTurns: 7,
   thresholds: {
     confidence: 0.7,
   },

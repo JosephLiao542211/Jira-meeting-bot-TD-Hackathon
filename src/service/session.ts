@@ -1,19 +1,4 @@
-export interface Ticket {
-  summary: string;
-  description?: string;
-  type?: string;
-  priority?: string;
-  assignee?: string;   // Jira accountId — use getUsers to resolve from display name
-  labels?: string[];
-  sprintId?: number;   // customfield_10020 — use getActiveSprint to resolve
-}
-
-export interface Proposal {
-  id?: string;
-  botId?: string;
-  summary: string;
-  ticket: Ticket;
-}
+import type { Proposal } from "./jira.js";
 
 export interface Session {
   botId: string;

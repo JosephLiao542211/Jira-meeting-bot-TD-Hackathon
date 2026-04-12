@@ -20,11 +20,11 @@ npm start         # run compiled output
 
 ## Endpoints
 
-| Endpoint | Description |
-|---|---|
-| `POST /api/start-bot` | Launch a Recall.ai bot into a meeting |
-| `ws://.../ws/recall` | Recall.ai streams transcript events here |
-| `ws://.../ws/ui` | Dashboard connects here for proposals |
+| Endpoint              | Description                              |
+| --------------------- | ---------------------------------------- |
+| `POST /api/start-bot` | Launch a Recall.ai bot into a meeting    |
+| `ws://.../ws/recall`  | Recall.ai streams transcript events here |
+| `ws://.../ws/ui`      | Dashboard connects here for proposals    |
 
 ## Usage
 
@@ -38,3 +38,6 @@ curl -X POST http://localhost:3001/api/start-bot \
   -H "Content-Type: application/json" \
   -d '{"meetingUrl": "https://zoom.us/j/..."}'
 ```
+
+Agentic Loop
+![alt text](image.png)

@@ -14,7 +14,8 @@ export function enqueue(data: Omit<Job, "id" | "status">): Job {
   const id = `job_${Date.now()}`;
   const job: Job = { ...data, id, status: "pending" };
   jobs.set(id, job);
-  log("queue", `enqueued ${id} — ${data.type}: ${data.payload.summary}`, "yellow");
+  const label = data.payload.summary ?? data.payload.issueKey ?? data.type;
+  log("queue", `enqueued ${id} — ${data.type}: ${label}`, "yellow");
   return job;
 }
 
@@ -22,10 +23,10 @@ export function getJob(id: string): Job | undefined {
   return jobs.get(id);
 }
 
-/** Returns true if a pending job with the same summary already exists. */
-export function hasPendingDuplicate(summary: string): boolean {
+/** Returns true if any pending job matches the predicate. */
+export function hasPending(predicate: (job: Job) => boolean): boolean {
   for (const job of jobs.values()) {
-    if (job.status === "pending" && job.payload.summary === summary) return true;
+    if (job.status === "pending" && predicate(job)) return true;
   }
   return false;
 }
