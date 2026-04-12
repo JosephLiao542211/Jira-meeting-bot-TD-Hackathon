@@ -1,7 +1,7 @@
 export { createIssue } from "./jira/createIssue.js";
 export { updateIssue } from "./jira/updateIssue.js";
 export { searchIssues } from "./jira/searchIssues.js";
-export { notify as notifySlack } from "./slack/notify.js";
+export { notify as notifyTeams } from "./teams/notify.js";
 
 export const toolDeclarations = [
   {
@@ -44,8 +44,8 @@ export const toolDeclarations = [
     },
   },
   {
-    name: "notifySlack",
-    description: "Sends a notification message to Slack.",
+    name: "notifyTeams",
+    description: "Sends a notification message to Microsoft Teams.",
     parameters: {
       type: "object",
       properties: {

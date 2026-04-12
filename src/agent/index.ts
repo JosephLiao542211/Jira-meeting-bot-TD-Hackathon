@@ -2,7 +2,7 @@ import { bus, type TranscriptEvent } from "../service/bus.js";
 import { detectActionItem } from "./skills/jira/detectActionItem.js";
 import { detectBugReport } from "./skills/jira/detectBugReport.js";
 import { detectDecision } from "./skills/jira/detectDecision.js";
-import { createIssue } from "./tools/index.js";
+import { createIssue, notifyTeams } from "./tools/index.js";
 
 bus.on("transcript", async ({ session }: TranscriptEvent) => {
   const buffer = session.transcriptBuffer;
@@ -10,18 +10,18 @@ bus.on("transcript", async ({ session }: TranscriptEvent) => {
   const actionItem = detectActionItem(buffer);
   if (actionItem) {
     const issue = await createIssue({ ...actionItem, type: "Task" });
-    console.log(`[agent] created ${issue.key} (action item)`);
+    await notifyTeams(`Action item detected — [${issue.key}] ${actionItem.summary}`);
   }
 
   const bug = detectBugReport(buffer);
   if (bug) {
     const issue = await createIssue({ ...bug, type: "Bug" });
-    console.log(`[agent] created ${issue.key} (bug report)`);
+    await notifyTeams(`Bug reported — [${issue.key}] ${bug.summary}`);
   }
 
   const decision = detectDecision(buffer);
   if (decision) {
     const issue = await createIssue({ ...decision, type: "Task", labels: ["decision"] });
-    console.log(`[agent] created ${issue.key} (decision)`);
+    await notifyTeams(`Decision logged — [${issue.key}] ${decision.summary}`);
   }
 });
