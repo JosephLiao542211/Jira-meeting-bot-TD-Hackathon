@@ -1,5 +1,5 @@
 export const config = {
-  model: "gemini-2.0-flash-exp",
+  model: "gemini-3.1-flash-lite-preview",
   thresholds: {
     confidence: 0.7,
   },

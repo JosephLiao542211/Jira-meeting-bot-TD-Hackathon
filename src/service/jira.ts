@@ -58,10 +58,11 @@ export async function updateIssue(issueKey: string, fields: Record<string, unkno
 }
 
 export async function searchIssues(jql: string): Promise<{ issues: { key: string; fields: { summary: string; status: { name: string } } }[] }> {
-  const url = new URL(`${baseUrl()}/search`);
-  url.searchParams.set("jql", jql);
-  url.searchParams.set("fields", "summary,status,assignee,priority");
-  const res = await fetch(url.toString(), { headers: { Authorization: authHeader() } });
+  const res = await fetch(`${baseUrl()}/search/jql`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: authHeader() },
+    body: JSON.stringify({ jql, fields: ["summary", "status", "assignee", "priority"] }),
+  });
   if (!res.ok) throw new Error(`Jira ${res.status}: ${await res.text()}`);
   return res.json() as any;
 }

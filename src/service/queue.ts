@@ -22,6 +22,14 @@ export function getJob(id: string): Job | undefined {
   return jobs.get(id);
 }
 
+/** Returns true if a pending job with the same summary already exists. */
+export function hasPendingDuplicate(summary: string): boolean {
+  for (const job of jobs.values()) {
+    if (job.status === "pending" && job.payload.summary === summary) return true;
+  }
+  return false;
+}
+
 export function updateStatus(id: string, status: Job["status"]): Job | undefined {
   const job = jobs.get(id);
   if (job) {

@@ -6,29 +6,63 @@ import { log } from "../util/index.js";
 
 export const jobsRouter = Router();
 
-jobsRouter.get("/:id/approve", async (req, res) => {
+function confirmationPage(job: { id: string; type: string; payload: Record<string, unknown>; status: string }): string {
+  const summary = String(job.payload.summary ?? "Jira action");
+  const desc = job.payload.description ? `<p>${String(job.payload.description)}</p>` : "";
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${summary}</title>
+<style>body{font-family:system-ui,sans-serif;max-width:480px;margin:40px auto;padding:0 16px}
+h2{margin-bottom:4px}p{color:#555}.actions{display:flex;gap:12px;margin-top:24px}
+button{padding:10px 24px;border:none;border-radius:6px;font-size:16px;cursor:pointer;color:#fff}
+.approve{background:#22863a}.deny{background:#cb2431}.done{background:#666}</style></head>
+<body><h2>${job.type}: ${summary}</h2>${desc}
+${job.status !== "pending"
+    ? `<p>This job has already been <strong>${job.status}</strong>.</p>`
+    : `<div class="actions">
+<form method="POST" action="/api/jobs/${job.id}/approve"><button class="approve" type="submit">Approve</button></form>
+<form method="POST" action="/api/jobs/${job.id}/deny"><button class="deny" type="submit">Deny</button></form>
+</div>`}
+</body></html>`;
+}
+
+// GET serves a confirmation page (safe for Teams link unfurling)
+jobsRouter.get("/:id/approve", (req, res) => {
   const job = getJob(req.params.id);
-  if (!job) { res.status(404).json({ error: "not found" }); return; }
-  if (job.status !== "pending") { res.json({ status: job.status }); return; }
+  if (!job) { res.status(404).send("Job not found"); return; }
+  res.type("html").send(confirmationPage(job));
+});
+
+jobsRouter.get("/:id/deny", (req, res) => {
+  const job = getJob(req.params.id);
+  if (!job) { res.status(404).send("Job not found"); return; }
+  res.type("html").send(confirmationPage(job));
+});
+
+// POST actually executes the action
+jobsRouter.post("/:id/approve", async (req, res) => {
+  const job = getJob(req.params.id);
+  if (!job) { res.status(404).send("Job not found"); return; }
+  if (job.status !== "pending") { res.type("html").send(confirmationPage(job)); return; }
 
   updateStatus(job.id, "approved");
   try {
     const { issueKey } = await executeJob(job);
     log("jobs", `approved ${job.id} → created ${issueKey}`, "green");
     await notifyResult(job.botId, `✅ Created ${issueKey}: ${job.payload.summary}`);
-    res.json({ approved: true, issueKey });
+    res.type("html").send(confirmationPage({ ...job, status: "approved" }));
   } catch (err: any) {
     log("jobs", `failed to execute ${job.id}: ${err.message}`, "red");
-    res.status(500).json({ error: err.message });
+    updateStatus(job.id, "pending");
+    res.status(500).send(`Error: ${err.message}`);
   }
 });
 
-jobsRouter.get("/:id/deny", async (req, res) => {
+jobsRouter.post("/:id/deny", async (req, res) => {
   const job = getJob(req.params.id);
-  if (!job) { res.status(404).json({ error: "not found" }); return; }
+  if (!job) { res.status(404).send("Job not found"); return; }
+  if (job.status !== "pending") { res.type("html").send(confirmationPage(job)); return; }
 
   updateStatus(job.id, "denied");
   log("jobs", `denied ${job.id} — ${job.payload.summary}`, "red");
   await notifyResult(job.botId, `❌ Denied: ${job.payload.summary}`);
-  res.json({ denied: true });
+  res.type("html").send(confirmationPage({ ...job, status: "denied" }));
 });
