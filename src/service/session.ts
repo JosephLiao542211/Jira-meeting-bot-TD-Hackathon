@@ -1,18 +1,4 @@
-export interface Ticket {
-  summary: string;
-  description?: string;
-  type?: string;
-  priority?: string;
-  assignee?: string;
-  labels?: string[];
-}
-
-export interface Proposal {
-  id?: string;
-  botId?: string;
-  summary: string;
-  ticket: Ticket;
-}
+import type { Proposal } from "./jira.js";
 
 export interface Session {
   botId: string;

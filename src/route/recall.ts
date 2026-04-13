@@ -1,9 +1,14 @@
 import { WebSocketServer } from "ws";
 import { getSession } from "../service/session.js";
 import { bus } from "../service/bus.js";
+import { log } from "../util/index.js";
+
+const MAX_TRANSCRIPT_BUFFER_SIZE = 40;
 
 export function registerRecallWs(recallWss: WebSocketServer): void {
   recallWss.on("connection", (ws) => {
+    log("recall", "bot connected", "cyan");
+
     ws.on("message", (raw) => {
       let event: any;
       try {
@@ -21,17 +26,18 @@ export function registerRecallWs(recallWss: WebSocketServer): void {
         const line = `${speaker}: ${words}`;
 
         session.transcriptBuffer.push(line);
-        if (session.transcriptBuffer.length > 40) session.transcriptBuffer.shift();
+        if (session.transcriptBuffer.length > MAX_TRANSCRIPT_BUFFER_SIZE) session.transcriptBuffer.shift();
 
+        log("transcript", line, "cyan");
         bus.emit("transcript", { botId, session, line });
       }
 
       if (event.event?.startsWith("participant_events.")) {
-        console.log("[recall] participant event:", event.event);
+        log("recall", `participant event: ${event.event}`, "gray");
       }
     });
 
-    ws.on("close", () => console.log("[recall] disconnected"));
-    ws.on("error", (err) => console.error("[recall] error:", err.message));
+    ws.on("close", () => log("recall", "bot disconnected", "gray"));
+    ws.on("error", (err) => log("recall", `error: ${err.message}`, "red"));
   });
 }

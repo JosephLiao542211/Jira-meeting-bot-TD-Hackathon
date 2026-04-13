@@ -11,7 +11,8 @@ botRouter.post("/start-bot", async (req, res) => {
   // }
 
   try {
-    const test_meetingUrl = "https://teams.live.com/meet/9347965897568?p=Y2JYBxdNPFTlcNRfvx"
+    const test_meetingUrl =
+      "https://teams.live.com/meet/9378712953185?p=fYw5LXF2PDng6mBP1J";
     const bot = await launchBot(test_meetingUrl);
     res.json({ botId: bot.id, status: "launched" });
   } catch (err: any) {

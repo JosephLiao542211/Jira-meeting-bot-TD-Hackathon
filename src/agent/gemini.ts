@@ -1,24 +1,35 @@
-import { WebSocket } from "ws";
 import { config } from "./config.js";
-import { systemPrompt } from "./prompts/system.js";
-import { toolDeclarations } from "./tools/index.js";
+import { withRetry } from "../util/retry.js";
 
-export function createGeminiSession(): WebSocket {
-  const url = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${process.env.GEMINI_API_KEY}`;
-  const ws = new WebSocket(url);
-
-  ws.on("open", () => {
-    ws.send(JSON.stringify({
-      setup: {
-        model: `models/${config.model}`,
+async function callGeminiRaw(
+  systemPrompt: string,
+  messages: unknown[],
+  tools: unknown[],
+): Promise<any> {
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${config.model}:generateContent?key=${process.env.GEMINI_API_KEY}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
         system_instruction: { parts: [{ text: systemPrompt }] },
-        tools: [{ function_declarations: toolDeclarations }],
-        generation_config: { response_modalities: ["TEXT"] },
-      },
-    }));
+        contents: messages,
+        tools: [{ function_declarations: tools }],
+      }),
+    },
+  );
+  if (!res.ok) throw new Error(`Gemini ${res.status}: ${await res.text()}`);
+  return res.json();
+}
+
+export async function callGemini(
+  systemPrompt: string,
+  messages: unknown[],
+  tools: unknown[],
+): Promise<any> {
+  return withRetry(() => callGeminiRaw(systemPrompt, messages, tools), null, {
+    tag: "gemini",
+    maxAttempts: 3,
+    baseDelayMs: 1_000,
   });
-
-  ws.on("error", (err) => console.error("[gemini] error:", err.message));
-
-  return ws;
 }
