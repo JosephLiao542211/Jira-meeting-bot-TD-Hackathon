@@ -89,4 +89,17 @@ Transcript:
 > Dave: We should probably think about refactoring the auth module at some point.
 
 No tool calls. Vague statement with no commitment or assignment.
+
+### No action — garbled speech recognition
+Transcript:
+> Alice: Go to sholivi.
+> Alice: A creamy a new ticket in order to.
+
+No tool calls. "sholivi" and "a creamy" are speech recognition errors, not real words. The sentence is incoherent. Do NOT create a ticket with nonsensical words.
+
+### No action — incomplete thought
+Transcript:
+> Bob: We need to create a ticket for the.
+
+No tool calls. The sentence trails off mid-thought. Wait for the next batch of lines to get the complete request.
 `.trim();

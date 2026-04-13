@@ -14,11 +14,9 @@ export async function requestApproval(botId: string, job: Job): Promise<void> {
   const base = process.env.PUBLIC_URL ?? `http://localhost:${process.env.PORT ?? 3001}`;
   const label = String(job.payload.summary ?? job.payload.issueKey ?? "Jira action");
   const issueRef = job.payload.issueKey ? ` [${job.payload.issueKey}]` : "";
-  const message = [
-    `📋 ${job.type}${issueRef}: ${label}`,
-    `✅ Approve: ${base}/api/jobs/${job.id}/approve`,
-    `❌ Deny: ${base}/api/jobs/${job.id}/deny`,
-  ].join("\n");
+  const approveUrl = `${base}/api/jobs/${job.id}/approve`;
+  const denyUrl = `${base}/api/jobs/${job.id}/deny`;
+  const message = `📋 ${job.type}${issueRef}: ${label} — <a href="${approveUrl}">✅ Approve</a> | <a href="${denyUrl}">❌ Deny</a>`;
   await send(botId, message);
 }
 
