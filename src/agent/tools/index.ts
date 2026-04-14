@@ -5,6 +5,8 @@ export { getUsers } from "./jira/getUsers.js";
 export { getActiveSprint } from "./jira/getSprints.js";
 export { requestApproval, notifyResult } from "./teams/notify.js";
 
+import { askMessageGuide } from "../prompts/askMessage.js";
+
 // ── Research tools (read-only lookups, executed automatically) ───────────────
 
 export const researchToolDeclarations = [
@@ -72,6 +74,10 @@ export const actionToolDeclarations = [
     parameters: {
       type: "object",
       properties: {
+        askMessage: {
+          type: "string",
+          description: askMessageGuide,
+        },
         summary: {
           type: "string",
           description: "Concise title under 100 chars. Start with a verb.",
@@ -118,6 +124,10 @@ export const actionToolDeclarations = [
     parameters: {
       type: "object",
       properties: {
+        askMessage: {
+          type: "string",
+          description: askMessageGuide,
+        },
         issueKey: {
           type: "string",
           description: "The issue key to update, e.g. 'KAN-1'. Resolve via searchIssues.",
@@ -155,6 +165,10 @@ export const actionToolDeclarations = [
     parameters: {
       type: "object",
       properties: {
+        askMessage: {
+          type: "string",
+          description: askMessageGuide,
+        },
         issueKey: {
           type: "string",
           description: "The issue key, e.g. 'KAN-1'.",

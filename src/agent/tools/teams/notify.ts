@@ -12,11 +12,10 @@ async function send(botId: string, message: string): Promise<void> {
 
 export async function requestApproval(botId: string, job: Job): Promise<void> {
   const base = process.env.PUBLIC_URL ?? `http://localhost:${process.env.PORT ?? 3001}`;
-  const label = String(job.payload.summary ?? job.payload.issueKey ?? "Jira action");
-  const issueRef = job.payload.issueKey ? ` [${job.payload.issueKey}]` : "";
   const approveUrl = `${base}/api/jobs/${job.id}/approve`;
   const denyUrl = `${base}/api/jobs/${job.id}/deny`;
-  const message = `📋 ${job.type}${issueRef}: ${label} — <a href="${approveUrl}">✅ Approve</a> | <a href="${denyUrl}">❌ Deny</a>`;
+  const askMessage = typeof job.payload.askMessage === "string" ? job.payload.askMessage : "Would you like to proceed with this action?";
+  const message = `${askMessage ? `${askMessage}\n` : ""}<a href="${approveUrl}">Approve</a> or <a href="${denyUrl}">Deny</a>`;
   await send(botId, message);
 }
 
