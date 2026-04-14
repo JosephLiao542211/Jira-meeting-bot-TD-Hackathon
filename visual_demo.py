@@ -12,7 +12,7 @@ before_df = pd.DataFrame([
         "Key": "DEV-142",
         "Summary": "Fix login timeout issue",
         "Status": "In Progress",
-        "Assignee": "Alex Chen",
+        "Assignee": "Joseph Liao",
         "Priority": "High",
     },
     {
@@ -20,7 +20,7 @@ before_df = pd.DataFrame([
         "Key": "DEV-155",
         "Summary": "Payment API integration",
         "Status": "In Progress",
-        "Assignee": "Sarah Li",
+        "Assignee": "Abdiaziz Maalim",
         "Priority": "Highest",
     },
     {
@@ -39,7 +39,7 @@ after_df = pd.DataFrame([
         "Key": "DEV-142",
         "Summary": "Fix login timeout issue",
         "Status": "Done",
-        "Assignee": "Alex Chen",
+        "Assignee": "Joseph Liao",
         "Priority": "High",
     },
     {
@@ -47,7 +47,7 @@ after_df = pd.DataFrame([
         "Key": "DEV-155",
         "Summary": "Payment API integration",
         "Status": "In Progress",
-        "Assignee": "Sarah Li",
+        "Assignee": "Abdiaziz Maalim",
         "Priority": "Highest",
     },
     {
@@ -69,9 +69,9 @@ after_df = pd.DataFrame([
 ])
 
 transcript_lines = [
-    "Alex: DEV-142 is done, we can close that.",
-    "Sarah: Let's create QA testing under DEV-155.",
-    "Maggie: I started DEV-160 yesterday, it is now in progress.",
+    "Joseph L: DEV-142 is done, we can close that.",
+    "Abdiaziz M: Let's create QA testing under DEV-155.",
+    "Maggie Z: I started DEV-160 yesterday, it is now in progress.",
 ]
 
 pending_actions = [
@@ -122,10 +122,10 @@ if "approved_close" not in st.session_state:
 # -----------------------------
 # Header
 # -----------------------------
-st.title("Gemini SprintMate")
-st.caption("AI Jira Assistant Demo • TD Intern x Gemini Hackathon")
+st.title("Gemini Jira Assistant")
+st.caption("AI Jira Assistant Demo • 2026 TD Intern x Gemini Hackathon")
 st.markdown(
-    "An AI scrum assistant that turns stand-up conversations into Jira updates."
+    "An AI assistant that turns stand-up conversations into Jira updates."
 )
 
 m1, m2, m3 = st.columns(3)
